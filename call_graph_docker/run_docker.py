@@ -11,7 +11,7 @@ from utils import create_dir_if_not_exists
 logger = logging.getLogger(__name__)
 
 import utils
-from swebench_docker.constants import MAP_VERSION_TO_INSTALL
+from call_graph_docker.constants import MAP_VERSION_TO_INSTALL
 
 def setup_task_floder(output_dir, task_id):
     """Set up the task environment and return the task output directory."""
@@ -66,7 +66,7 @@ async def run_task_docker(task: dict,
 
     cmd_string = ' '.join(docker_command)
 
-    with open(pjoin(task_output_dir, 'cmd.txt'), 'w') as f:
+    with open(pjoin(task_output_dir, 'cmd.txt'), 'w', encoding='utf-8') as f:
         f.write(cmd_string)
 
     start_time = time.time()

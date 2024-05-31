@@ -22,7 +22,7 @@ class LogWrapper:
         self.logger = logger
         self.prefix = prefix
 
-        with open(self.log_file, 'w') as f:
+        with open(self.log_file, 'w', encoding='utf-8') as f:
             f.write('')
 
     def write(
@@ -31,7 +31,7 @@ class LogWrapper:
             mode: str = "a",
             level: int = INFO):
 
-        with open(self.log_file, mode) as f:
+        with open(self.log_file, mode, encoding='utf-8') as f:
             log = f"{self.prefix} {message} \n" if self.prefix \
                 is not None else f"{message} \n"
             f.write(log)
@@ -161,14 +161,14 @@ class TaskEnvContextManager:
                 out_pre_install = self.exec(
                     cmd_pre_install, timeout=self.timeout, shell=True
                 )
-                with open(self.log_file, "a") as f:
+                with open(self.log_file, "a", encoding='utf-8') as f:
                     f.write(f"Pre-installation Command: {cmd_pre_install}\n")
                     f.write(f"Std. Output: {out_pre_install.stdout}\n")
                     if out_pre_install.stderr:
                         f.write(f"Std. Error: {out_pre_install.stderr}\n")
                 if out_pre_install.returncode != 0:
                     self.log.write(f"Pre-install setup failed", level=ERROR)
-                    with open(self.log_file, "a") as f:
+                    with open(self.log_file, "a", encoding='utf-8') as f:
                         f.write(f"\n{INSTALL_FAIL}\n")
                     return False
 
@@ -189,7 +189,7 @@ class TaskEnvContextManager:
         # If patch is `None`, indicate in log and skip
         if patch is None:
             self.log.write(f"Patch is `None` ({patch_type})")
-            with open(self.log_file, "a") as f:
+            with open(self.log_file, "a", encoding='utf-8') as f:
                 f.write(f"{APPLY_PATCH_FAIL}; Prediction patch is `None`")
             return False
 
@@ -199,7 +199,7 @@ class TaskEnvContextManager:
             f"temp_{self.instance_id}_{patch_type}.patch",
         )
 
-        with open(patch_path, "w") as f:
+        with open(patch_path, "w", encoding='utf-8') as f:
             f.write(patch)
 
         # Restore test files before applying if patch_type is 'test'
@@ -219,7 +219,7 @@ class TaskEnvContextManager:
         if out_patch.returncode != 0:
             # Patch apply failed
             self.log.write(f"{log_cmd} patch failed ({patch_type})", level=ERROR)
-            with open(self.log_file, "a") as f:
+            with open(self.log_file, "a", encoding='utf-8') as f:
                 f.write(f"{APPLY_PATCH_FAIL}; ({patch_type})\nOutput:\n")
                 f.write(out_patch.stdout)
                 if out_patch.stderr:
@@ -228,7 +228,7 @@ class TaskEnvContextManager:
 
         # Patch apply succeeded
         self.log.write(f"{log_cmd} patch successful ({patch_type})")
-        with open(self.log_file, "a") as f:
+        with open(self.log_file, "a", encoding='utf-8') as f:
             f.write(f"{APPLY_PATCH_PASS} ({patch_type})\n")
         return True
 
@@ -249,7 +249,7 @@ class TaskEnvContextManager:
             else:
                 test_cmd = f"{self.cmd_conda_run} {instance['test_cmd']}"
 
-            with open(self.log_file, "a") as f:
+            with open(self.log_file, "a", encoding='utf-8') as f:
                 f.write(f"Test Script: {test_cmd};\n")
             print(test_cmd)
             out_test = self.exec(
@@ -257,7 +257,7 @@ class TaskEnvContextManager:
             )
 
             # Write pass/fail status to log file
-            with open(self.log_file, "a") as f:
+            with open(self.log_file, "a", encoding='utf-8') as f:
                 if out_test.returncode != 0:
                     f.write(f"\n{TESTS_FAILED}\n")
                 else:
@@ -268,13 +268,13 @@ class TaskEnvContextManager:
         except subprocess.TimeoutExpired:
             # Test command run timed out
             self.log.write("Test script run timed out", level=ERROR)
-            with open(self.log_file, "a") as f:
+            with open(self.log_file, "a", encoding='utf-8') as f:
                 f.write(f"{TESTS_TIMEOUT} after {self.timeout} seconds\n")
             return False
         except Exception as e:
             # Test command run failed
             self.log.write(f"Test script run failed", level=ERROR)
-            with open(self.log_file, "a") as f:
+            with open(self.log_file, "a", encoding='utf-8') as f:
                 f.write(f"{TESTS_ERROR}: {e}")
             return False
 

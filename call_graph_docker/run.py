@@ -28,6 +28,8 @@ if __name__ == '__main__':
     task_instance = json.loads(base64.b64decode(os.getenv('INSTANCE')).decode('utf-8'))
     output_dir = os.getenv('OUTPUT_DIR')
 
+    template_path = os.path.join(os.getenv('CALL_GRAPH_PATH'), 'template.py')
+
     eval_main(
         task_instance=task_instance,
         testbed_name=os.getenv('TESTBED_NAME'),
@@ -35,7 +37,8 @@ if __name__ == '__main__':
         log_dir=os.getenv('LOG_DIR'),
         timeout=int(os.getenv('TIMEOUT')) if os.getenv('TIMEOUT') is not None else None,
         log_suffix=os.getenv('LOG_SUFFIX'),
-        image_type=os.getenv('IMAGE_TYPE', 'conda')
+        image_type=os.getenv('IMAGE_TYPE', 'conda'),
+        template_path=template_path
     )
 
     # 将 task_instance 写入到 testpy.json 文件中

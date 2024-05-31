@@ -101,7 +101,8 @@ def get_call_graph_by_test(
         test_cmd = '',
         project_path = '',
         testcases_failing=[],
-        output_dir=''
+        output_dir='',
+        template_path =''
 ):
     # [1] 提取测试的文件
     if "django" in task_id:
@@ -113,18 +114,21 @@ def get_call_graph_by_test(
     # pycallgraph_name = 'pycallgraph2' if utils.check_python_version(self.logger, self.env_name, [3, 6]) else 'pycallgraph'
     py_trans_list = []
     method_filter_list = PyCallGraphCode.get_method_filter(test_cmd, testcases_failing, task_id)
-
+    print(method_filter_list)
     for py_file in py_files_list:
         py_path = pjoin(project_path, py_file)
         print(py_path)
-        transformer = PyCallGraphCode.add_pycallgraph_to_file(file_path=py_path,
-                                save_graph_path=output_dir,
-                                save_graph_png_path=pjoin(output_dir, 'funcCallGraph'),
-                                max_depth=25,
-                                task_id=task_id,
-                                method_filter_list=method_filter_list,
-                                pycallgraph_name=pycallgraph_name,
-                                is_save_test_code=True)
+        transformer = PyCallGraphCode.add_pycallgraph_to_file(
+            file_path=py_path,
+            save_graph_path=output_dir,
+            save_graph_png_path=pjoin(output_dir, 'funcCallGraph'),
+            max_depth=25,
+            task_id=task_id,
+            method_filter_list=method_filter_list,
+            pycallgraph_name=pycallgraph_name,
+            is_save_test_code=True,
+            template_path=template_path
+        )
         py_trans_list.append(transformer)
     # [3] 安装额外的包：
     if 'tox' in test_cmd:
