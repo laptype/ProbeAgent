@@ -15,7 +15,8 @@ def main(
     timeout: int,
     log_suffix: str = None,
     image_type: str = 'conda',
-    template_path: str = ''
+    template_path: str = '',
+    debug_function_path:str =''
 ):
 
     logger.info("Instance ID: " + task_instance['instance_id'] + "\nTestbed: " + testbed_name + "\nLog dir: " + log_dir)
@@ -47,7 +48,8 @@ def main(
             project_path=repo_dir,
             testcases_failing=task_instance['FAIL_TO_PASS'],
             output_dir=log_dir,
-            template_path=template_path
+            template_path=template_path,
+            debug_function_path=debug_function_path
         )
         # Run testing script
         if not tcm.run_tests_task(task_instance):

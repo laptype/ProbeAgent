@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import logging
 import subprocess
 from context_manager import ExecWrapper, LogWrapper
@@ -21,34 +22,13 @@ class ExecManager:
         image_type: str = "conda",
     ):
         self.instance_id = task_instance[KEY_INSTANCE_ID]
-        model = task_instance[KEY_MODEL]
         self.image_type = image_type
-        self.repo_dir = repo_dir
         if image_type == "conda":
             self.cmd_conda_run = f"conda run -n {testbed_name} "
         else:
             self.cmd_conda_run = ""
 
-        log_file_name = f"{self.instance_id}.{model}.eval.log"
-
-        self.log_file = os.path.join(log_dir, log_file_name)
-        self.log = LogWrapper(
-            self.log_file, logger=logger_taskenv,
-            prefix=f"[{testbed_name}] [{self.instance_id}]")
-
         self.exec = exec
-        # self.exec = ExecWrapper(
-        #     subprocess_args={
-        #         "cwd": self.repo_dir,
-        #         "check": True,
-        #         "shell": False,
-        #         # "capture_output": False,
-        #         "universal_newlines": True,
-        #         "stdout": subprocess.PIPE,
-        #         "stderr": subprocess.STDOUT,
-        #     },
-        #     logger=self.log,
-        # )
 
         self.specifications = MAP_VERSION_TO_INSTALL[task_instance["repo"]][task_instance["version"]]
 
@@ -95,6 +75,20 @@ def change_tox_ini(path, pkgs):
     with open(file_path, 'w') as configfile:
         config.write(configfile)
 
+def copy_debug_function(debug_function_path, py_path):
+    py_dir = os.path.dirname(py_path)
+
+    # 获取debug_function_path的文件名
+    debug_function_filename = os.path.basename(debug_function_path)
+
+    # 构造目标路径
+    destination_path = os.path.join(py_dir, debug_function_filename)
+
+    # 复制文件到目标路径
+    shutil.copy(debug_function_path, destination_path)
+
+    print(f"File {debug_function_filename} copied to {py_dir}")
+
 def get_call_graph_by_test(
         exec: ExecManager,
         task_id = '',
@@ -102,7 +96,8 @@ def get_call_graph_by_test(
         project_path = '',
         testcases_failing=[],
         output_dir='',
-        template_path =''
+        template_path ='',
+        debug_function_path = '',
 ):
     # [1] 提取测试的文件
     if "django" in task_id:
@@ -118,6 +113,7 @@ def get_call_graph_by_test(
     for py_file in py_files_list:
         py_path = pjoin(project_path, py_file)
         print(py_path)
+        copy_debug_function(debug_function_path, py_path)
         transformer = PyCallGraphCode.add_pycallgraph_to_file(
             file_path=py_path,
             save_graph_path=output_dir,

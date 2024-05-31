@@ -29,7 +29,7 @@ if __name__ == '__main__':
     output_dir = os.getenv('OUTPUT_DIR')
 
     template_path = os.path.join(os.getenv('CALL_GRAPH_PATH'), 'template.py')
-
+    debug_function_path = os.path.join(os.getenv('CALL_GRAPH_PATH'), 'debug_function.py')
     eval_main(
         task_instance=task_instance,
         testbed_name=os.getenv('TESTBED_NAME'),
@@ -38,7 +38,8 @@ if __name__ == '__main__':
         timeout=int(os.getenv('TIMEOUT')) if os.getenv('TIMEOUT') is not None else None,
         log_suffix=os.getenv('LOG_SUFFIX'),
         image_type=os.getenv('IMAGE_TYPE', 'conda'),
-        template_path=template_path
+        template_path=template_path,
+        debug_function_path=debug_function_path
     )
 
     # 将 task_instance 写入到 testpy.json 文件中

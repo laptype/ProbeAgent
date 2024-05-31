@@ -8,6 +8,7 @@ import sys
 from os.path import join as pjoin
 from string import Template
 
+
 map_include_list = {
     'astropy':      ['astropy.*'],
     'matplotlib':   ['matplotlib.*', 'mpl_toolkits.*'],
@@ -101,6 +102,9 @@ class AddPyCallGraphToFunc(ast.NodeTransformer):
 
         self.template = Template(template_code)
 
+        self.decorator_name = 'debug_function_scope'
+        self.decorator_arg = str(pjoin(self.save_graph_path, 'variable.jsonl'))
+
     #     ['matplotlib.*', 'sklearn.*', 'astropy.*', 'django.*', 'flask.*', 'xarray.*', 'pylint.*', 'pytest.*', '_pytest.*', 'sphinx.*', 'sympy.*']
 
     def method_filter(self, name: str) -> bool:
@@ -129,6 +133,14 @@ class AddPyCallGraphToFunc(ast.NodeTransformer):
         return astor.to_source(node)
 
     def _process_func(self, node):
+        # 添加装饰器，带有参数
+        decorator = ast.Call(
+            func=ast.Name(id=self.decorator_name, ctx=ast.Load()),
+            args=[ast.Constant(value=self.decorator_arg)],
+            keywords=[]
+        )
+        node.decorator_list.insert(0, decorator)
+
         output_path_single = str(pjoin(self.save_graph_png_path, f'{node.name}.pkl'))
 
         global_code = self.template.substitute(
@@ -154,144 +166,6 @@ class AddPyCallGraphToFunc(ast.NodeTransformer):
     def _save_test_code(self, node):
         if self.test_code is not None:
             self.test_code[node.name] = unparse(node)
-
-#     def _process_func(self, node):
-#         output_path = str(pjoin(self.save_graph_png_path, f'{node.name}.png'))
-#         # output_path = '/dev/null'
-#         output_graph_path = str(pjoin(self.save_graph_png_path, f'{node.name}.pkl'))
-#         global_code = f"""
-# import os
-# import json
-# import pickle
-# import traceback
-# import networkx as nx
-# from {self.pycallgraph_name} import PyCallGraph
-# from {self.pycallgraph_name}.output import Output
-# from {self.pycallgraph_name}.config import Config
-# from {self.pycallgraph_name}.globbing_filter import GlobbingFilter
-#
-# class CustomGraphOutput(Output):
-#     def __init__(self, output_file, output_all_file):
-#         self.output_file = output_file
-#         # merge graph ---------------------------------------
-#         if not os.path.exists('{self.output_graph_all_path}'):
-#             self.allGraph = nx.DiGraph()
-#         else:
-#             with open('{self.output_graph_all_path}', 'rb') as f:
-#                 self.allGraph = pickle.load(f)
-#         self.graph = nx.DiGraph()
-#
-#     def done(self):
-#         processor = self.processor
-#         for edge in processor.edges():
-#             self.graph.add_edge(edge.src_func, edge.dst_func)
-#             self.allGraph.add_edge(edge.src_func, edge.dst_func)
-#         with open(self.output_file, 'wb') as f:
-#             pickle.dump(self.graph, f)
-#         with open('{self.output_graph_all_path}', 'wb') as f:
-#             pickle.dump(self.allGraph, f)
-#
-# # 设置pycallgraph的配置
-# config = Config(max_depth={self.max_depth})
-# #config.trace_filter = GlobbingFilter(include={str(self.include_list)})
-# config.include_stdlib = True
-# config.verbose = True
-# # 创建我们的自定义输出对象
-# # graphviz = GraphvizOutput(output_file='{output_path}')
-# graphviz = CustomGraphOutput('{output_graph_path}')
-# is_pass = 'Pass'
-# """
-#         line1 = ast.parse(global_code).body
-#         line2 = ast.parse("with PyCallGraph(output=graphviz, config=config): pass").body[0]
-#         # line2 = ast.parse(f"if True: pass").body[0]
-#         graph_code = ast.parse(
-#             f"""
-# # merge graph ---------------------------------------
-# if not os.path.exists('{self.output_graph_path}'):
-#     graph = nx.DiGraph()
-# else:
-#     with open('{self.output_graph_path}', 'rb') as f:
-#         graph = pickle.load(f)
-# processor = graphviz.processor
-# for edge in processor.edges():
-#     graph.add_edge(edge.src_func, edge.dst_func)
-# # 获取 traceback ------------------------------------
-# tb = traceback.extract_tb(e.__traceback__)
-# # 提取所有函数名字
-# function_names_dict = []
-# for frame in tb:
-#     tmp_dict = {{}}
-#     tmp_dict['name'] = frame.name
-#     tmp_dict['filename'] = frame.filename
-#     tmp_dict['line'] = frame.line
-#     tmp_dict['lineno'] = frame.lineno
-#     tmp_dict['locals'] = frame.locals
-#     function_names_dict.append(str(tmp_dict))
-# function_names = [frame.name for frame in tb]
-# # 读取已有的JSON文件
-# with open('{self.output_traceback_path}', 'r', encoding='utf-8') as file:
-#     data = json.load(file)
-# data['{node.name}'] = function_names_dict
-# # 将更新后的数据写回到JSON文件
-# with open('{self.output_traceback_path}', 'w', encoding='utf-8') as file:
-#     json.dump(data, file, indent=4)
-# # 设置节点属性：是否是中断函数 --------------------------
-# for node in graph.nodes:
-#     for func_name in function_names:
-#         if func_name in node:
-#             graph.nodes[node]['is_interrupted'] = True
-#         else:
-#             graph.nodes[node]['is_interrupted'] = False
-# with open('{self.output_graph_path}', 'wb') as f:
-#     pickle.dump(graph, f)
-# is_pass = 'Fail to Pass'
-# raise
-#             """
-#         ).body
-#
-#         # 创建 try-except-finally 结构
-#         try_body = node.body if node.body and not isinstance(node.body[0], ast.Pass) else [ast.Pass()]
-#         # except_code = [ast.Pass()]
-#         except_code = graph_code
-#         finally_code = [ast.Pass()]
-#         try_except = ast.Try(
-#             body=try_body,  # 原始函数体作为try的内容
-#             handlers=[ast.ExceptHandler(type=ast.Name(id='Exception', ctx=ast.Load()), name="e", body=except_code)],
-#             orelse=[],
-#             finalbody=[]  # 这里留空，稍后添加finally
-#         )
-#
-#         # 将 finally 代码添加到 try-except 结构中
-#         finally_code = (
-#             f"""
-# with open('{self.output_test_path}', 'a') as f:
-#     f.write(f'[{{is_pass}}]: {node.name}\\n')
-#             """
-#         )
-#         finally_code = ast.parse(finally_code).body
-#         try_except.finalbody = finally_code
-#         # 将 try-except 结构封装进 with 语句中
-#         line2.body = [try_except]
-#         node.body = line1+[line2]
-#         # 普通的 return 处理
-#         return ast.NodeTransformer.generic_visit(self, node)
-
-    # def save_graph_png(self):
-    #     import matplotlib.pyplot as plt
-    #     output_path = str(pjoin(self.save_graph_png_path, f'call_graph.png'))
-    #
-    #     with open(self.output_graph_path, 'rb') as f:
-    #         graph = pickle.load(f)
-    #
-    #     node_colors = [
-    #         'red' if graph.nodes[node].get('is_interrupted', False) else 'blue'
-    #         for node in graph.nodes()
-    #     ]
-    #     pos = nx.spring_layout(graph)
-    #     plt.figure(figsize=(10, 10))
-    #     nx.draw(graph, pos, node_color=node_colors, with_labels=True, node_size=500, font_size=10, font_color='black')
-    #     plt.savefig(output_path)
-    #     plt.close()
 
     def save_test_code_in_json(self, task_id, task_map_path):
         with open(task_map_path, 'r', encoding='utf-8') as file:
@@ -321,6 +195,9 @@ def add_pycallgraph_to_file(file_path,
     with open(file_path, "r", encoding='utf-8') as source_file:
         source_code = source_file.read()
 
+    # 将 import 语句添加到源代码的开头
+    source_code = 'from .debug_function import debug_function_scope\n' + source_code
+
     # 解析源代码为 AST
     tree = ast.parse(source_code)
 
@@ -346,34 +223,6 @@ def add_pycallgraph_to_file(file_path,
 
     return transformer
 
-
-# class CallGraph():
-#     def __init__(self, graph: nx.DiGraph):
-#         self.graph = graph
-#
-#     @staticmethod
-#     def load_graph(file_path):
-#         # file_path = os.path.join(file_path, 'call_graph.pkl')
-#         with open(file_path, 'rb') as f:
-#             graph = pickle.load(f)
-#         return CallGraph(graph)
-#
-#     def print_edges(self):
-#         # Print all edges in the graph
-#         for src, dst in self.graph.edges():
-#             print(f"{src} -> {dst}")
-#
-#     def get_subgraph(self, node_name, radius=1):
-#         # Extract the subgraph around a given node within a specified radius
-#         if node_name in self.graph:
-#             subgraph = nx.ego_graph(
-#                 self.graph, node_name, radius=radius, undirected=True
-#             )
-#             return subgraph
-#         else:
-#             print(f"No node named {node_name} found in the graph.")
-#             return None
-
 if __name__ == '__main__':
     # 调用函数，输入你的文件路径
     # add_pycallgraph_to_file('test_artist.py')
@@ -391,10 +240,4 @@ if __name__ == '__main__':
                             task_id='astropy__astropy-14995',
                             method_filter_list=method_filter_list,
                             pycallgraph_name='pycallgraph2')
-    # cg = CallGraph.load_graph('graph.pkl')
-    # cg.print_edges()
-    # cg.visualize(cg.graph)
-    # subgraph = cg.get_subgraph(
-    #     "matplotlib.artist.AxesImage.format_cursor_data", radius=2
-    # )
-    # cg.visualize(subgraph)
+
