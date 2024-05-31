@@ -32,23 +32,23 @@ def main(
         if not tcm.apply_patch(task_instance["test_patch"], patch_type=PatchType.PATCH_TEST.value):
             logger.warning("Evaluation failed")
             sys.exit(1)
-        # cg_exec = cg.ExecManager(
-        #     exec=tcm.exec,
-        #     task_instance=task_instance,
-        #     testbed_name=testbed_name,
-        #     repo_dir=repo_dir,
-        #     log_dir=log_dir,
-        #     image_type=image_type
-        # )
-        # cg.get_call_graph_by_test(
-        #     exec=cg_exec,
-        #     task_id=task_instance['instance_id'],
-        #     test_cmd=task_instance['test_cmd'],
-        #     project_path=repo_dir,
-        #     testcases_failing=task_instance['FAIL_TO_PASS'],
-        #     output_dir=log_dir,
-        #     template_path=template_path
-        # )
+        cg_exec = cg.ExecManager(
+            exec=tcm.exec,
+            task_instance=task_instance,
+            testbed_name=testbed_name,
+            repo_dir=repo_dir,
+            log_dir=log_dir,
+            image_type=image_type
+        )
+        cg.get_call_graph_by_test(
+            exec=cg_exec,
+            task_id=task_instance['instance_id'],
+            test_cmd=task_instance['test_cmd'],
+            project_path=repo_dir,
+            testcases_failing=task_instance['FAIL_TO_PASS'],
+            output_dir=log_dir,
+            template_path=template_path
+        )
         # Run testing script
         if not tcm.run_tests_task(task_instance):
             logger.warning("Evaluation failed")
