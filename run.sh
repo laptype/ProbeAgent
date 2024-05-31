@@ -1,7 +1,6 @@
 #!/bin/bash
 
 directory="/root/code/probe_code_docker/test"
-swe_bench_tasks="/root/swe_bench_docker/data/swe-bench.json"
 
 echo "$directory"
 
