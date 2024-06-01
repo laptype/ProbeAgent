@@ -2,77 +2,117 @@ import sys
 import json
 import os
 
-def save_local_vars(local_vars, full_func_path, input_args, return_value, jsonl_file):
-    record = {
-        "args": {k: str(type(v)) for k, v in input_args.items()},
-        "locals": {}
-    }
-
-    for var_name, var_value in local_vars.items():
-        try:
-            value_str = str(var_value)[:100]
-        except Exception as e:
-            value_str = f"Unserializable value: {e}"
-        record["locals"][var_name] = {
-            "type": str(type(var_value)),
-            "value": value_str
-        }
-
-    record["return"] = {
-        "type": str(type(return_value)),
-        "value": str(return_value)[:100]
-    }
-
-    with open(jsonl_file, "a", encoding='utf-8') as file:
-        json_record = {full_func_path: record}
-        file.write(json.dumps(json_record) + "\n")
+map_include_list = [
+    'astropy',
+    'matplotlib',
+    'mpl_toolkits',
+    'seaborn',
+    'flask',
+    'requests',
+    'xarray',
+    'pylint',
+    'pytest',
+    '_pytest',
+    'sklearn',
+    'sphinx',
+    'sympy',
+    'django',
+    'xml'
+]
 
 
-def trace_function_calls(frame, event, arg, jsonl_file):
-    if event == 'call':
-        code = frame.f_code
-        func_name = code.co_name
-        class_name = None
+def check_module(module_name):
+    for include in map_include_list:
+        if include in module_name:
+            return True
+    return False
 
-        # 获取所属类名（如果有）
-        if 'self' in frame.f_locals:
-            class_name = frame.f_locals['self'].__class__.__name__
+class FunctionTracer:
+    def __init__(self, json_file, target_module=None, test_func_name='test_kernel_ridge'):
+        self.json_file = json_file
+        self.full_func_path = None
+        self.target_module = target_module
+        self.test_func_name = test_func_name
+        self.frames = []
+        self.in_with_block = False
+        self.records = {}
 
-        # 获取文件路径
-        file_path = code.co_filename
-        # 转换文件路径为模块路径
-        module_path = os.path.relpath(file_path, start=os.getcwd()).replace(os.sep, ".")
-        file_name = os.path.splitext(module_path)[0]
+    def __enter__(self):
+        self.in_with_block = True
+        sys.settrace(self.trace_function_calls)
+        return self
 
-        full_func_path = f"{file_name}.{class_name}.{func_name}" if class_name else f"{file_name}.{func_name}"
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.in_with_block = False
+        for frame in self.frames:
+            self.save_with_scope_vars(frame.f_locals)
+        sys.settrace(None)
+        self.write_json_file()
 
-        def trace_local_vars(frame, event, arg):
-            if event == 'return':
-                local_vars = frame.f_locals.copy()
-                # 获取输入参数
-                input_args = {**frame.f_locals}
-                # 获取返回值
-                return_value = arg
-                save_local_vars(local_vars, full_func_path, input_args, return_value, jsonl_file)
-            return trace_local_vars
+    def save_with_scope_vars(self, local_vars):
+        if self.test_func_name not in self.records:
+            self.records[self.test_func_name] = {}
 
-        return trace_local_vars
-    return trace_function_calls
+        for var_name, var_value in local_vars.items():
+            var_type = str(type(var_value))
+            try:
+                if var_name.startswith('callGraph_'):
+                    continue
+                if 'FunctionTracer' in var_type:
+                    continue
+                value_str = str(var_value)[:100]
+            except Exception as e:
+                value_str = f"Unserializable value: {e}"
 
-def debug_function_scope(json_path='debug_info.jsonl'):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            jsonl_file = json_path
+            self.records[self.test_func_name][var_name] = {
+                "type": var_type,
+                "value": value_str
+            }
 
-            # 清空或创建 JSONL 文件
-            if not os.path.exists(jsonl_file):
-                open(jsonl_file, "w", encoding='utf-8').close()
-            # 启动全局跟踪
-            sys.settrace(lambda frame, event, arg: trace_function_calls(frame, event, arg, jsonl_file))
-            result = func(*args, **kwargs)
-            sys.settrace(None)  # 取消跟踪
+    def save_local_vars(self, local_vars):
+        if self.target_module and not check_module(self.full_func_path):
+            return
 
-            return result
+        if self.full_func_path not in self.records:
+            self.records[self.full_func_path] = {}
 
-        return wrapper
-    return decorator
+        for var_name, var_value in local_vars.items():
+            try:
+                value_str = str(var_value)[:100]
+            except Exception as e:
+                value_str = f"Unserializable value: {e}"
+            self.records[self.full_func_path][var_name] = {
+                "type": str(type(var_value)),
+                "value": value_str
+            }
+
+    def write_json_file(self):
+        with open(self.json_file, "w", encoding='utf-8') as file:
+            json.dump(self.records, file, indent=4)
+
+    def trace_function_calls(self, frame, event, arg):
+        if event == 'call':
+            code = frame.f_code
+            func_name = code.co_name
+            class_name = None
+
+            if 'self' in frame.f_locals:
+                class_name = frame.f_locals['self'].__class__.__name__
+
+            file_path = code.co_filename
+            module_path = os.path.relpath(file_path, start=os.getcwd()).replace(os.sep, ".")
+            file_name = os.path.splitext(module_path)[0]
+
+            self.full_func_path = f"{file_name}.{class_name}.{func_name}" if class_name else f"{file_name}.{func_name}"
+            self.frames.append(frame)
+
+            # Save local vars if in the with block
+            if self.in_with_block and frame.f_back.f_code.co_name == self.test_func_name:
+                self.save_with_scope_vars(frame.f_back.f_locals)
+
+        elif event in ['return', 'exception']:
+            if frame in self.frames:
+                self.frames.remove(frame)
+                self.save_local_vars(frame.f_locals)
+
+        return self.trace_function_calls

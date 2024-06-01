@@ -113,7 +113,7 @@ def get_call_graph_by_test(
     for py_file in py_files_list:
         py_path = pjoin(project_path, py_file)
         print(py_path)
-        copy_debug_function(debug_function_path, py_path)
+        # copy_debug_function(debug_function_path, py_path)
         transformer = PyCallGraphCode.add_pycallgraph_to_file(
             file_path=py_path,
             save_graph_path=output_dir,
@@ -123,9 +123,11 @@ def get_call_graph_by_test(
             method_filter_list=method_filter_list,
             pycallgraph_name=pycallgraph_name,
             is_save_test_code=True,
-            template_path=template_path
+            template_path=template_path,
+            debug_function_path=debug_function_path
         )
         py_trans_list.append(transformer)
+
     # [3] 安装额外的包：
     if 'tox' in test_cmd:
         change_tox_ini(project_path, ['networkx', pycallgraph_name])

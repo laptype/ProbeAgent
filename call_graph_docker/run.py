@@ -30,6 +30,7 @@ if __name__ == '__main__':
 
     template_path = os.path.join(os.getenv('CALL_GRAPH_PATH'), 'template.py')
     debug_function_path = os.path.join(os.getenv('CALL_GRAPH_PATH'), 'debug_function.py')
+
     eval_main(
         task_instance=task_instance,
         testbed_name=os.getenv('TESTBED_NAME'),

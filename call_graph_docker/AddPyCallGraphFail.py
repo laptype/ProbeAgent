@@ -133,16 +133,17 @@ class AddPyCallGraphToFunc(ast.NodeTransformer):
         return astor.to_source(node)
 
     def _process_func(self, node):
-        # 添加装饰器，带有参数
-        decorator = ast.Call(
-            func=ast.Name(id=self.decorator_name, ctx=ast.Load()),
-            args=[ast.Constant(value=self.decorator_arg)],
-            keywords=[]
-        )
-        node.decorator_list.insert(0, decorator)
+        # # 添加装饰器，带有参数
+        # decorator = ast.Call(
+        #     func=ast.Name(id=self.decorator_name, ctx=ast.Load()),
+        #     args=[ast.Constant(value=self.decorator_arg)],
+        #     keywords=[]
+        # )
+        # # node.decorator_list.append(decorator)
+        # node.decorator_list.insert(0, decorator)
 
         output_path_single = str(pjoin(self.save_graph_png_path, f'{node.name}.pkl'))
-
+        output_tracer_path = str(pjoin(self.save_graph_png_path, f'{node.name}.json'))
         global_code = self.template.substitute(
             pycallgraph_name=self.pycallgraph_name,
             output_graph_path_single=output_path_single,
@@ -150,6 +151,7 @@ class AddPyCallGraphToFunc(ast.NodeTransformer):
             output_graph_all_path=self.output_graph_all_path,
             output_traceback_path=self.output_traceback_path,
             output_test_path=self.output_test_path,
+            output_tracer_path=output_tracer_path,
             node_name=node.name,
             max_depth=self.max_depth,
             include_list=self.include_list
@@ -165,7 +167,13 @@ class AddPyCallGraphToFunc(ast.NodeTransformer):
 
     def _save_test_code(self, node):
         if self.test_code is not None:
-            self.test_code[node.name] = unparse(node)
+            # self.test_code[node.name] = unparse(node)
+            self.save_to_txt_file(node.name, unparse(node))
+
+    def save_to_txt_file(self, node_name, code_str):
+        file_path = os.path.join(self.save_graph_png_path, f"{node_name}.txt")
+        with open(file_path, 'w') as file:
+            file.write(code_str)
 
     def save_test_code_in_json(self, task_id, task_map_path):
         with open(task_map_path, 'r', encoding='utf-8') as file:
@@ -189,15 +197,25 @@ def add_pycallgraph_to_file(file_path,
                             method_filter_list=[],
                             pycallgraph_name='pycallgraph2',
                             is_save_test_code=False,
-                            template_path='template.py'):
+                            template_path='template.py',
+                            debug_function_path=''):
     if outfile_path is None:
         outfile_path = file_path
     with open(file_path, "r", encoding='utf-8') as source_file:
         source_code = source_file.read()
 
     # 将 import 语句添加到源代码的开头
-    source_code = 'from .debug_function import debug_function_scope\n' + source_code
 
+    dynamic_import = f'''
+import importlib.util
+spec = importlib.util.spec_from_file_location("debug_function", "{debug_function_path}")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+FunctionTracer = getattr(module, 'FunctionTracer')\n
+'''
+    # source_code = 'from .debug_function import FunctionTracer\n' + source_code
+    source_code = dynamic_import + source_code
+    print(source_code)
     # 解析源代码为 AST
     tree = ast.parse(source_code)
 

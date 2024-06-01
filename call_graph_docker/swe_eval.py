@@ -33,6 +33,7 @@ def main(
         if not tcm.apply_patch(task_instance["test_patch"], patch_type=PatchType.PATCH_TEST.value):
             logger.warning("Evaluation failed")
             sys.exit(1)
+
         cg_exec = cg.ExecManager(
             exec=tcm.exec,
             task_instance=task_instance,
